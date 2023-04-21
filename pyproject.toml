@@ -1,15 +1,14 @@
 [tool.poetry]
 name = "localization-tool"
 version = "0.1.0"
-description = ""
-authors = ["Dzmitry Boika <you@example.com>"]
+description = "The app translate .arb files for localization of Flutter apps"
+authors = ["Dzmitry Boika <dzmitryboika1@gmail.com>"]
 readme = "README.md"
 packages = [{include = "localization_tool"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 flask = "^2.2.3"
-flake8 = "^6.0.0"
 flask-bootstrap = "^3.3.7.1"
 flask-dropzone = "^1.6.0"
 flask-wtf = "^1.1.1"
@@ -17,7 +16,6 @@ python-dotenv = "^1.0.0"
 celery = "^5.2.7"
 googletrans = "4.0.0rc1"
 translators = "^5.7.0"
-deep-translator = "^1.10.1"
 
 
 [build-system]

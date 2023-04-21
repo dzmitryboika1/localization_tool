@@ -38,7 +38,6 @@ def localize_arb_file(arb_file_path: str, output_dir_path: str):
                 text = f.read()
                 # get list of tuples with key-value pairs from arb
                 decoded_arb_file = json.loads(text, object_pairs_hook=list)
-
         except Exception as e:
             print(e)
 

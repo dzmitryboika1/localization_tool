@@ -1,5 +1,4 @@
 import os
-import time
 from glob import glob
 from io import BytesIO
 from zipfile import ZipFile
@@ -10,14 +9,12 @@ from flask_bootstrap import Bootstrap
 from flask_dropzone import Dropzone
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
-# from celery_utils import get_celery_app_instance
 
 from localization_tool.translator import localize_arb_file
 
 load_dotenv()
 
 app = Flask(__name__)
-# celery = get_celery_app_instance(app)
 csrf = CSRFProtect(app)
 bootstrap = Bootstrap(app)
 dropzone = Dropzone(app)
@@ -29,9 +26,10 @@ app.config.update(
     DROPZONE_MAX_FILES=5,
     DROPZONE_ALLOWED_FILE_CUSTOM=True,
     DROPZONE_ALLOWED_FILE_TYPE='.arb',
-    DROPZONE_DEFAULT_MESSAGE='Drop your .arb file here to to_upload (max size up to 1 MB)',
-    DROPZONE_INVALID_FILE_TYPE="Can't upload files of this type.",
-    DROPZONE_UPLOAD_MULTIPLE=False, DROPZONE_ENABLE_CSRF=True,
+    DROPZONE_DEFAULT_MESSAGE='Drop your .arb file here to upload (max size up to 1 MB)',
+    DROPZONE_INVALID_FILE_TYPE="Can't upload files of this type. Only .arb files are allowed",
+    DROPZONE_UPLOAD_MULTIPLE=False,
+    DROPZONE_ENABLE_CSRF=True,
 )
 
 
@@ -47,17 +45,16 @@ def home():
 @app.route('/upload-arb', methods=["POST", "GET"])
 def upload_arb():
     if request.method == 'POST':
-        # check if the post request has the file part
+        # check if the post request has the files
         if "file" not in request.files:
             flash('No file part', 'error')
             return redirect(request.url)
         source_arb_files = request.files.getlist("file")
         session['source_arb_file_names'] = []
-        print(source_arb_files)
         for file in source_arb_files:
             # if the user does not drop a file, the browser submits an empty file without a filename.
             if file.filename == '':
-                flash('No selected file', 'error')
+                flash('No selected files', 'error')
                 return redirect(request.url)
             if file and allowed_file(file.filename):
                 # safely extract the original filename
@@ -72,7 +69,6 @@ def upload_arb():
 @app.route('/translate')
 def translate():
     source_arb_file_names = session.get('source_arb_file_names', None)
-    print(source_arb_file_names)
     if source_arb_file_names:
         for file in source_arb_file_names:
             path_to_source_arb = f"{app.config['UPLOAD_FOLDER']}/{file}"
@@ -84,7 +80,7 @@ def translate():
             flash('Oops, something went wrong. Please, try again!', 'error')
             return redirect(url_for('home'))
 
-    flash('Please, upload file!', 'error')
+    flash('Please, upload files!', 'error')
     return redirect(url_for('home'))
 
 
@@ -102,24 +98,15 @@ def download():
 
     return send_from_directory(
         directory=app.config['DOWNLOAD_FOLDER'],
-        path=os.path.basename(session['output_arb_file_path']),
+        path=os.path.basename(glob(os.path.join(target, '*.arb'))[0]),
         as_attachment=True
     )
 
 
 # handle CSRF error
 @app.errorhandler(CSRFError)
-def csrf_error(e):
-    return e.description, 400
-
-
-# celery tasks
-# @celery.task
-# def clear_uploads_downloads_dirs():
-#     time.sleep(60)
-#     os.remove(f"{app.config['UPLOAD_FOLDER']}/{session['pdf_file_name']}")
-#     os.remove(f"{app.config['DOWNLOAD_FOLDER']}/{session['mp3_file_name']}")
-#     return "Task completed!"
+def csrf_error(error):
+    return error.description, 400
 
 
 if __name__ == '__main__':
