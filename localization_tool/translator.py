@@ -3,9 +3,6 @@ from pathlib import Path
 
 import translators as ts
 from requests import HTTPError
-from googletrans import Translator
-
-translator = Translator()
 
 
 def translate(text: str, lang: str = 'ru') -> str:
@@ -25,7 +22,7 @@ def translate(text: str, lang: str = 'ru') -> str:
     return translated_text
 
 
-def localize_arb_file(arb_file_path: str, output_dir_path: str):
+def localize_arb_file(arb_file_path: str, output_dir_path: str) -> str:
     """
     Function deserializes an .arb file translates all values into the required language.
     Next, it serializes the data back into the .arb file.
@@ -57,5 +54,3 @@ def localize_arb_file(arb_file_path: str, output_dir_path: str):
             json.dump(output_arb, wf, ensure_ascii=False)
 
         return output_path
-
-

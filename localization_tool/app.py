@@ -26,7 +26,7 @@ app.config.update(
     DROPZONE_MAX_FILES=5,
     DROPZONE_ALLOWED_FILE_CUSTOM=True,
     DROPZONE_ALLOWED_FILE_TYPE='.arb',
-    DROPZONE_DEFAULT_MESSAGE='Drop your .arb file here to upload (max size up to 1 MB)',
+    DROPZONE_DEFAULT_MESSAGE='Drop your .arb files here to upload (max size up to 1 MB)',
     DROPZONE_INVALID_FILE_TYPE="Can't upload files of this type. Only .arb files are allowed",
     DROPZONE_UPLOAD_MULTIPLE=False,
     DROPZONE_ENABLE_CSRF=True,
