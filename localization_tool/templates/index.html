@@ -1,0 +1,44 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block head %}
+  {{ super() }}
+  {{ dropzone.load_css() }}
+  {{ dropzone.style('border: 2px dashed #0087F7; margin: 2%; min-height: 200px;') }}
+{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% endblock %}
+
+{% block title %}Localization app for .arb{% endblock %}
+
+{% block content %}
+  <div class="jumbotron text-center">
+    <div class="container">
+      <h1 class="display-4">Localization app</h1>
+      <p class="lead">Do you want automatically translate your .arb file for Flutter apps?</p>
+      <hr class="my-4">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% if arb_translated %}
+        <p>Here we are! Your arb file is ready. Hit download to get it!</p>
+        <a href="{{ url_for('download') }}" class="btn btn-warning btn-lg">Download</a>
+        <a href="{{ url_for('home') }}" class="btn btn-warning btn-lg">⬅️Go Back</a>
+      {% else %}
+        <p>You've found the right place! Just upload your .arb file and hit translate!</p>
+        <div class="my-dropzone">
+          {{ dropzone.load_js() }}
+          {{ dropzone.config() }}
+          {{ dropzone.create(action=url_for('upload_arb')) }}
+        </div>
+        <a href="{{ url_for('translate') }}" class="btn btn-warning btn-lg">Translate</a>
+      {% endif %}
+
+    </div>
+  </div>
+
+{% endblock %}
