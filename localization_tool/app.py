@@ -1,8 +1,11 @@
 import os
 import time
+from glob import glob
+from io import BytesIO
+from zipfile import ZipFile
 
 from dotenv import load_dotenv
-from flask import Flask, send_from_directory, render_template, request, redirect, url_for, flash, session
+from flask import Flask, send_from_directory, render_template, request, redirect, url_for, flash, session, send_file
 from flask_bootstrap import Bootstrap
 from flask_dropzone import Dropzone
 from flask_wtf.csrf import CSRFProtect, CSRFError
@@ -45,35 +48,41 @@ def home():
 def upload_arb():
     if request.method == 'POST':
         # check if the post request has the file part
-        if 'file' not in request.files:
+        if "file" not in request.files:
             flash('No file part', 'error')
             return redirect(request.url)
-        source_arb_file = request.files['file']
-        # If the user does not select a file, the browser submits an
-        # empty file without a filename.
-        if source_arb_file.filename == '':
-            flash('No selected file', 'error')
-            return redirect(request.url)
-        if source_arb_file and allowed_file(source_arb_file.filename):
-            filename = secure_filename(source_arb_file.filename)
-            source_arb_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            session['source_arb_file_name'] = filename
-            return redirect(url_for('translate'))
+        source_arb_files = request.files.getlist("file")
+        session['source_arb_file_names'] = []
+        print(source_arb_files)
+        for file in source_arb_files:
+            # if the user does not drop a file, the browser submits an empty file without a filename.
+            if file.filename == '':
+                flash('No selected file', 'error')
+                return redirect(request.url)
+            if file and allowed_file(file.filename):
+                # safely extract the original filename
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                session['source_arb_file_names'].append(filename)
+                return redirect(url_for('translate'))
 
         return redirect(url_for('home'))
 
 
 @app.route('/translate')
 def translate():
-    source_arb_file_name = session.get('source_arb_file_name', None)
-    if source_arb_file_name:
-        path_to_source_arb = f"{app.config['UPLOAD_FOLDER']}/{source_arb_file_name}"
-        output_arb_file_path = localize_arb_file(path_to_source_arb, app.config['DOWNLOAD_FOLDER'])
-        if output_arb_file_path:
-            session['output_arb_file_path'] = output_arb_file_path
-            return redirect(url_for('home', arb_translated=True))
-        flash('Oops, something went wrong. Please, try again!', 'error')
-        return redirect(url_for('home'))
+    source_arb_file_names = session.get('source_arb_file_names', None)
+    print(source_arb_file_names)
+    if source_arb_file_names:
+        for file in source_arb_file_names:
+            path_to_source_arb = f"{app.config['UPLOAD_FOLDER']}/{file}"
+            output_arb_file_path = localize_arb_file(path_to_source_arb, app.config['DOWNLOAD_FOLDER'])
+            if output_arb_file_path:
+                session['output_arb_file_path'] = output_arb_file_path
+                return redirect(url_for('home', arb_translated=True))
+
+            flash('Oops, something went wrong. Please, try again!', 'error')
+            return redirect(url_for('home'))
 
     flash('Please, upload file!', 'error')
     return redirect(url_for('home'))
@@ -81,8 +90,16 @@ def translate():
 
 @app.route('/download')
 def download():
-    # function.delay() is used to trigger function as celery task
-    # clear_uploads_downloads_dirs.delay()
+    target = app.config['DOWNLOAD_FOLDER']
+    if len(glob(f"{target}/*.arb")) > 1:
+        print('hi')
+        stream = BytesIO()
+        with ZipFile(stream, 'w') as zip_file:
+            for file in glob(os.path.join(target, '*.arb')):
+                zip_file.write(file, os.path.basename(file))
+        stream.seek(0)
+        return send_file(stream, as_attachment=True, download_name='archive.zip')
+
     return send_from_directory(
         directory=app.config['DOWNLOAD_FOLDER'],
         path=os.path.basename(session['output_arb_file_path']),

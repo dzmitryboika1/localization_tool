@@ -60,7 +60,3 @@ def localize_arb_file(arb_file_path: str, output_dir_path: str):
         return output_path
 
 
-# localize_arb_file('/home/boika/localization_tool/localization_tool/to_upload/intl_en.arb', '/home/boika/localization_tool/localization_tool/to_download')
-
-
-
