@@ -1,4 +1,7 @@
 import os
+import shutil
+import time
+
 from glob import glob
 from io import BytesIO
 from zipfile import ZipFile
@@ -9,12 +12,15 @@ from flask_bootstrap import Bootstrap
 from flask_dropzone import Dropzone
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
+from celery import Celery
 
 from localization_tool.translator import localize_arb_file
+from localization_tool.celery_utils import get_celery_app_instance
 
 load_dotenv()
 
 app = Flask(__name__)
+celery = get_celery_app_instance(app)
 csrf = CSRFProtect(app)
 bootstrap = Bootstrap(app)
 dropzone = Dropzone(app)
@@ -32,6 +38,8 @@ app.config.update(
     DROPZONE_ENABLE_CSRF=True,
 )
 
+def make_celery():
+    celery = Celery
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['DROPZONE_ALLOWED_FILE_TYPE']
@@ -88,14 +96,15 @@ def translate():
 def download():
     target = app.config['DOWNLOAD_FOLDER']
     if len(glob(f"{target}/*.arb")) > 1:
-        print('hi')
         stream = BytesIO()
         with ZipFile(stream, 'w') as zip_file:
             for file in glob(os.path.join(target, '*.arb')):
                 zip_file.write(file, os.path.basename(file))
         stream.seek(0)
+        clear_uploads_downloads_dirs.delay()
         return send_file(stream, as_attachment=True, download_name='archive.zip')
 
+    clear_uploads_downloads_dirs.delay()
     return send_from_directory(
         directory=app.config['DOWNLOAD_FOLDER'],
         path=os.path.basename(glob(os.path.join(target, '*.arb'))[0]),
@@ -107,6 +116,25 @@ def download():
 @app.errorhandler(CSRFError)
 def csrf_error(error):
     return error.description, 400
+
+
+# celery tasks
+@celery.task(name='localization_tool.app.test_task.clear_uploads_downloads_dirs')
+def clear_uploads_downloads_dirs():
+    dirs_tuple = (app.config['UPLOAD_FOLDER'], app.config['DOWNLOAD_FOLDER'])
+    time.sleep(60)
+    for directory in dirs_tuple:
+        for file in os.listdir(directory):
+            print(file)
+            path = os.path.join(directory, file)
+            print(path)
+            try:
+                shutil.rmtree(path)
+            except OSError:
+                os.remove(path)
+        return "Task completed!"
+
+
 
 
 if __name__ == '__main__':

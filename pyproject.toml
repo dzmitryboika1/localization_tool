@@ -15,6 +15,7 @@ flask-wtf = "^1.1.1"
 python-dotenv = "^1.0.0"
 celery = "^5.2.7"
 translators = "^5.7.0"
+redis = "^4.5.4"
 
 
 [build-system]

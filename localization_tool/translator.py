@@ -9,13 +9,13 @@ def translate(text: str, lang: str = 'ru') -> str:
     """
     Translate text from one language to another. Language of the source string is determined automatically.
     It takes two arguments: text: str - source text; lang: str - language to translate
-    Returns str - translated text. By default, the func uses the translation language is Russian and Yandex
+    Returns str - translated text. By default, the func uses the translation language is Russian and Google
     translator. To get all available languages use ts.translators_pool. To get all available translators use official
     docs of package translators https://pypi.org/project/translators/
     """
     translated_text = ''
     try:
-        translated_text = ts.translate_text(text, from_language='auto', to_language=lang, translator='yandex', )
+        translated_text = ts.translate_text(text, from_language='auto', to_language=lang, translator='google')
     except HTTPError:
         print("HTTPError, try to use another translator in parameter translator")
 
