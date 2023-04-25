@@ -1,8 +1,9 @@
 import os
-import shutil
+
 import time
 from glob import glob
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 from dotenv import load_dotenv
@@ -122,14 +123,18 @@ def csrf_error(error):
 # celery tasks
 @celery.task(name='localization_tool.app.test_task.clear_uploads_downloads_dirs')
 def clear_uploads_downloads_dirs():
-    dirs_tuple = (app.config['UPLOAD_FOLDER'], app.config['DOWNLOAD_FOLDER'])
-    time.sleep(60)
+    dirs_tuple = (
+        str(Path(Path.cwd(), 'localization_tool', 'to_upload')),
+        str(Path(Path.cwd(), 'localization_tool', 'to_download'))
+    )
+    time.sleep(300)
     for directory in dirs_tuple:
         filelist = glob(os.path.join(directory, "*.arb"))
         for f in filelist:
             os.remove(f)
 
-        return "Task completed!"
+    return "Task completed!"
+
 
 
 if __name__ == '__main__':
