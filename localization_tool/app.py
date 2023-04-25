@@ -1,7 +1,6 @@
 import os
 import shutil
 import time
-
 from glob import glob
 from io import BytesIO
 from zipfile import ZipFile
@@ -38,8 +37,10 @@ app.config.update(
     DROPZONE_ENABLE_CSRF=True,
 )
 
+
 def make_celery():
     celery = Celery
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['DROPZONE_ALLOWED_FILE_TYPE']
@@ -124,17 +125,11 @@ def clear_uploads_downloads_dirs():
     dirs_tuple = (app.config['UPLOAD_FOLDER'], app.config['DOWNLOAD_FOLDER'])
     time.sleep(60)
     for directory in dirs_tuple:
-        for file in os.listdir(directory):
-            print(file)
-            path = os.path.join(directory, file)
-            print(path)
-            try:
-                shutil.rmtree(path)
-            except OSError:
-                os.remove(path)
+        filelist = glob(os.path.join(directory, "*.arb"))
+        for f in filelist:
+            os.remove(f)
+
         return "Task completed!"
-
-
 
 
 if __name__ == '__main__':
