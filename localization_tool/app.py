@@ -1,26 +1,21 @@
 import os
-
-import time
 from glob import glob
 from io import BytesIO
-from pathlib import Path
 from zipfile import ZipFile
 
 from dotenv import load_dotenv
-from flask import Flask, send_from_directory, render_template, request, redirect, url_for, flash, session, send_file
+from flask import Flask, send_from_directory, render_template, request, redirect, url_for, flash, send_file
 from flask_bootstrap import Bootstrap
 from flask_dropzone import Dropzone
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.utils import secure_filename
-from celery import Celery
 
 from localization_tool.translator import localize_arb_file
-from localization_tool.celery_utils import get_celery_app_instance
+
 
 load_dotenv()
 
 app = Flask(__name__)
-celery = get_celery_app_instance(app)
 csrf = CSRFProtect(app)
 bootstrap = Bootstrap(app)
 dropzone = Dropzone(app)
@@ -39,10 +34,6 @@ app.config.update(
 )
 
 
-def make_celery():
-    celery = Celery
-
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['DROPZONE_ALLOWED_FILE_TYPE']
 
@@ -55,12 +46,23 @@ def home():
 @app.route('/upload-arb', methods=["POST", "GET"])
 def upload_arb():
     if request.method == 'POST':
+        # clear to_upload and to_download dirs
+        for directory in (app.config['UPLOAD_FOLDER'], app.config['DOWNLOAD_FOLDER']):
+            filelist = glob(os.path.join(directory, "*.arb"))
+            if filelist:
+                for file in filelist:
+                    try:
+                        os.remove(file)
+                    except FileNotFoundError:
+                        print('The file is not found!')
+
         # check if the post request has the files
         if "file" not in request.files:
             flash('No file part', 'error')
             return redirect(request.url)
+
         source_arb_files = request.files.getlist("file")
-        session['source_arb_file_names'] = []
+
         for file in source_arb_files:
             # if the user does not drop a file, the browser submits an empty file without a filename.
             if file.filename == '':
@@ -70,25 +72,21 @@ def upload_arb():
                 # safely extract the original filename
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                session['source_arb_file_names'].append(filename)
-                return redirect(url_for('translate'))
 
-        return redirect(url_for('home'))
+    return redirect(url_for('home'))
 
 
 @app.route('/translate')
 def translate():
-    source_arb_file_names = session.get('source_arb_file_names', None)
-    if source_arb_file_names:
-        for file in source_arb_file_names:
-            path_to_source_arb = f"{app.config['UPLOAD_FOLDER']}/{file}"
-            output_arb_file_path = localize_arb_file(path_to_source_arb, app.config['DOWNLOAD_FOLDER'])
-            if output_arb_file_path:
-                session['output_arb_file_path'] = output_arb_file_path
-                return redirect(url_for('home', arb_translated=True))
+    filelist = glob(os.path.join(app.config['UPLOAD_FOLDER'], "*.arb"))
+    if filelist:
+        for file in filelist:
+            output_arb_file_path = localize_arb_file(file, app.config['DOWNLOAD_FOLDER'])
+            if not output_arb_file_path:
+                flash('Oops, something went wrong. Please, try again!', 'error')
+                return redirect(url_for('home'))
 
-            flash('Oops, something went wrong. Please, try again!', 'error')
-            return redirect(url_for('home'))
+        return redirect(url_for('home', arb_translated=True))
 
     flash('Please, upload files!', 'error')
     return redirect(url_for('home'))
@@ -103,10 +101,8 @@ def download():
             for file in glob(os.path.join(target, '*.arb')):
                 zip_file.write(file, os.path.basename(file))
         stream.seek(0)
-        clear_uploads_downloads_dirs.delay()
         return send_file(stream, as_attachment=True, download_name='archive.zip')
 
-    clear_uploads_downloads_dirs.delay()
     return send_from_directory(
         directory=app.config['DOWNLOAD_FOLDER'],
         path=os.path.basename(glob(os.path.join(target, '*.arb'))[0]),
@@ -118,22 +114,6 @@ def download():
 @app.errorhandler(CSRFError)
 def csrf_error(error):
     return error.description, 400
-
-
-# celery tasks
-@celery.task(name='localization_tool.app.test_task.clear_uploads_downloads_dirs')
-def clear_uploads_downloads_dirs():
-    dirs_tuple = (
-        str(Path(Path.cwd(), 'localization_tool', 'to_upload')),
-        str(Path(Path.cwd(), 'localization_tool', 'to_download'))
-    )
-    time.sleep(300)
-    for directory in dirs_tuple:
-        filelist = glob(os.path.join(directory, "*.arb"))
-        for f in filelist:
-            os.remove(f)
-
-    return "Task completed!"
 
 
 
